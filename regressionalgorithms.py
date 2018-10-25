@@ -114,12 +114,14 @@ class RidgeLinearRegression(Regressor):
     Stub is here to make this more clear
     Below you will also need to implement other classes for the other algorithms
     """
-    def __init__( self,lam, parameters={}):
+    def __init__( self, parameters={}):
         # Default parameters, any of which can be overwritten by values passed to params
         self.weights = None
-        self.lamb =  lam
-        self.params = {'features': [1, 2, 3, 4, 5]}
+        #self.lamb =  self.parameters['lamb']
+        self.params = {'features': [1, 2, 3, 4, 5],'lamb':0.01}
         self.reset(parameters)
+        self.lamb = self.params['lamb']
+        print(self.lamb)
 
     def learn(self, Xtrain, ytrain):
         numsamples = Xtrain.shape[0]
@@ -130,20 +132,23 @@ class RidgeLinearRegression(Regressor):
     def predict(self, Xtest):
         Xless = Xtest[:,self.params['features']]
         ytest = np.dot(Xless,self.weights)
+        #print(self.weights.shape)
         return ytest
 
 class LassoLinearRegression(Regressor):
-    def __init__(self,parameters):
+    def __init__(self,parameters={}):
         self.weights = 0
         self.params = {'features':[1,2,3]}
         self.reset(parameters)
-        self.lamb = 0.01
 
-        self.error = 10000
-        self.tolerance = 10e-4
-
+    def reset(self, parameters):
+        self.params = parameters
 
     def learn(self, Xtrain, ytrain):
+        error = 10000
+        tolerance = 10e-4
+        lamb = self.params['regwgt']
+
         Xless = Xtrain[:, self.params['features']]
         numsamples = Xtrain.shape[0]
 
@@ -154,40 +159,140 @@ class LassoLinearRegression(Regressor):
         #stepsize
         stepsize = 1/(2*np.linalg.norm(XX))
 
-        #initial c(w)
-        cw = np.square(np.linalg.norm(np.dot(Xless,self.weights)-ytrain,ord=2)) + self.lamb * np.linalg.norm(self.weights,ord = 1)
+        #init c(w)
+        self.weights = np.zeros(Xless.shape[1])
+        cw = np.square(np.linalg.norm(np.dot(Xless,self.weights)-ytrain)) + lamb * np.linalg.norm(self.weights,ord = 1)
 
         #define max iteration
         iter = 0
         maxIter = 5000
-        while np.abs(np.subtract(cw , self.error)) > self.tolerance and (iter < maxIter):
-            self.error = cw
-            self.weights = self.proximalOperator( (self.weights - stepsize*XX*self.weights+stepsize*Xy) ,stepsize)
+        while np.abs(np.subtract(cw , error)) > tolerance and (iter < maxIter):
+            error = cw
+            self.weights = self.proximalOperator( (self.weights - stepsize*np.dot(XX,self.weights) + stepsize*Xy) ,stepsize, lamb)
 
+            cw = np.square(np.linalg.norm(np.dot(Xless,self.weights)-ytrain)) + lamb * np.linalg.norm(self.weights,ord = 1)
             iter += 1
 
     #Proximal operator
-    def proximalOperator(self,prox,stepsize):
-        for ele,i in enumerate(prox):
-            if ele > stepsize*self.lamb:
-                prox[i] -= stepsize*self.lamb
-            elif np.abs(ele) <= stepsize*self.lamb:
+    def proximalOperator(self,prox,stepsize,lamb):
+
+        for i,ele in enumerate(prox):
+            if ele > stepsize * lamb:
+                prox[i] -= stepsize * lamb
+            elif np.abs(ele) <= stepsize * lamb:
                 prox[i] = 0
-            elif ele < stepsize*self.lamb:
-                prox[i] += stepsize*self.lamb
+            elif ele < stepsize * lamb:
+                prox[i] += stepsize * lamb
         return prox
 
 
     def predict(self, Xtest):
         Xless = Xtest[:,self.params['features']]
-        return np.dot(Xless,self.weights)
+        ytest = np.dot(Xless,self.weights)
+
+        return ytest
 
 
+class SGDLinearRegression(Regressor):
+    def __init__(self,parameters):
+        self.weights = 0
+        self.params = {'features': [1, 2, 3]}
+        self.reset(parameters)
 
 
+    def reset(self, parameters):
+        self.params = parameters
+
+    def learn(self, Xtrain, ytrain):
+
+        Xless = Xtrain[:, self.params['features']]
+        numsamples = Xtrain.shape[0]
+
+        stepsize = 0.01
+        epochs = 1000
+
+        #init W
+        self.weights = np.random.rand(Xless.shape[1])
+
+        for i in range(epochs):
+            for j in range(numsamples):
+                gcw = np.dot(( np.dot(Xless[j,:].T,self.weights)-ytrain[j] ),Xless[j,:] )
+
+                self.weights -= stepsize*gcw
+
+    def predict(self, Xtest):
+        Xless = Xtest[:,self.params['features']]
+        ytest = np.dot(Xless,self.weights)
+        #print(ytest.shape)
+        return ytest
+
+class BatchGradientDescent(Regressor):
+    def __init__(self,parameters):
+        self.weights = 0
+        self.params = {'features':[1,2,3]}
+        self.reset(parameters)
 
 
+    def reset(self, parameters):
+        self.params = parameters
 
+    def learn(self, Xtrain, ytrain):
+        Xless = Xtrain[:, self.params['features']]
+        numsamples = Xtrain.shape[0]
+
+        lamb = self.params['regwgt']
+        #initialization
+        error = 100000
+        tolerance = 10e-4
+        maxIter = 5000
+
+        iter = 0
+
+        #init c(w)
+        self.weights = np.random.rand(Xless.shape[1])
+        cw = np.square(np.linalg.norm(np.dot(Xless,self.weights)-ytrain,ord=2))/(2*numsamples)
+
+        while (np.abs(cw-error) > tolerance) and (iter < maxIter):
+            error = cw
+            gcw = (1 / numsamples) * np.dot(Xless.T, (np.dot(Xless, self.weights) - ytrain))
+            wt = self.weights
+            stepsize = self.line_search(wt,cw, gcw,Xless,ytrain,numsamples)
+
+            self.weights -= stepsize*gcw
+
+            cw = np.square(np.linalg.norm(np.dot(Xless,self.weights)-ytrain))/(2*numsamples)
+            print(cw, error,stepsize)
+            iter += 1
+        print(iter)
+
+    def line_search(self,wt,cw,gcw,Xless,ytrain,numsamples):
+        stepsize = 1.0
+        gama = 0.7
+        tolerance = 10e-4
+
+        obj = cw
+        maxIter = 5000
+        iter = 0
+        while iter<=maxIter:
+            wt -= stepsize * gcw
+            cw = np.square(np.linalg.norm(np.dot(Xless, wt) - ytrain, ord=2)) / (2 * numsamples)
+            if cw < np.subtract(obj,tolerance):
+                break
+            stepsize *= gama
+
+            iter+=1
+
+        if iter == maxIter:
+            print('max reached')
+            return 0,0
+
+        return stepsize
+
+    def predict(self, Xtest):
+        Xless = Xtest[:, self.params['features']]
+        ytest = np.dot(Xless, self.weights)
+
+        return ytest
 
 
 

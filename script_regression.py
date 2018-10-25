@@ -31,20 +31,23 @@ if __name__ == '__main__':
 
     regressionalgs = {#'Random': algs.Regressor(),
                 #'Mean': algs.MeanPredictor(),
-                #'FSLinearRegression5': algs.FSLinearRegression({'features': [e+1 for e in range(384)]}),
+                #'FSLinearRegression5': algs.FSLinearRegression({'features': range(5)}),
                 #'FSLinearRegression50': algs.FSLinearRegression({'features': range(50)}),
-                #'RidgeLinearRegression': algs.RidgeLinearRegression(lam=0.01,parameters={'features': range(384)}),
-                'LassoLinearRegression': algs.LassoLinearRegression(parameters={'features':range(384)})
+                #'RidgeLinearRegression': algs.RidgeLinearRegression(parameters={'features': range(384),'lamb':0.01}),
+                #'LassoLinearRegression': algs.LassoLinearRegression(parameters={'regwgt': None,'features':range(1)})
+                #'SGDLinearRegression':algs.SGDLinearRegression(parameters={'regwgt': None,'features':range(1)})
+                'BatchGradientDescent':algs.BatchGradientDescent(parameters={'regwgt': None,'features':range(1)})
              }
     numalgs = len(regressionalgs)
 
     # Enable the best parameter to be selected, to enable comparison
     # between algorithms with their best parameter settings
     parameters = (
-        {'regwgt': 0.0},
-        {'regwgt': 0.01},
-        {'regwgt': 1.0},
+        {'regwgt': 0.0,'features':range(384)},
+        {'regwgt': 0.01,'features':range(384)},
+        {'regwgt': 1.0,'features':range(384)},
                       )
+
     numparams = len(parameters)
     
     errors = {}
