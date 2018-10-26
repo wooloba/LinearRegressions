@@ -27,25 +27,43 @@ def geterror(predictions, ytest):
 if __name__ == '__main__':
     trainsize = 1000
     testsize = 5000
-    numruns = 5
 
-    regressionalgs = {#'Random': algs.Regressor(),
-                #'Mean': algs.MeanPredictor(),
-                #'FSLinearRegression5': algs.FSLinearRegression({'features': range(5)}),
-                #'FSLinearRegression50': algs.FSLinearRegression({'features': range(50)}),
-                #'RidgeLinearRegression': algs.RidgeLinearRegression(parameters={'features': range(384),'lamb':0.01}),
-                #'LassoLinearRegression': algs.LassoLinearRegression(parameters={'regwgt': None,'features':range(1)})
-                #'SGDLinearRegression':algs.SGDLinearRegression(parameters={'regwgt': None,'features':range(1)})
-                'BatchGradientDescent':algs.BatchGradientDescent(parameters={'regwgt': None,'features':range(1)})
+    #Here, you can increase or decrease the number of runs.
+    numruns = 3
+
+
+    '''
+    To disable/enable algorithm you want to test just comment/uncomment out the line of algorithm
+    parameters in each algorithm will be replaced. See comments below.
+    '''
+    regressionalgs = {
+                'Random': algs.Regressor(),
+                'Mean': algs.MeanPredictor(),
+                'FSLinearRegression5': algs.FSLinearRegression({'features': range(5)}),
+                'FSLinearRegression50': algs.FSLinearRegression({'features': range(50)}),
+                'RidgeLinearRegression': algs.RidgeLinearRegression(parameters={'features': range(384),'lamb':0.01}),
+                'LassoLinearRegression': algs.LassoLinearRegression(parameters={'regwgt': None,'features':range(1)}),
+                'SGDLinearRegression':algs.SGDLinearRegression(parameters={'regwgt': None,'features':range(1)}),
+                'BatchGradientDescent':algs.BatchGradientDescent(parameters={'regwgt': None,'features':range(1)}),
+                'AMSGRAD':algs.AMSGRAD(parameters={'regwgt': None,'features':range(1)})
              }
     numalgs = len(regressionalgs)
 
     # Enable the best parameter to be selected, to enable comparison
     # between algorithms with their best parameter settings
+    '''
+    Parameters in each algorithm will be replaced by following variable.
+    Only Lasso used regwet. Other algorithm only need features variable.
+    For FSLinearRegression, using large feature value would crash since matrix is not full rank and 
+    cannot be inversed. I have handled this problem by replacing 
+    np.linalg.inv to np.linalg.pinv (Line 103 of regressionalgorithm.py). pinv method will calculate
+    persudo inverse of a matrix. 
+    Therefore, problem caused by large number of features will be handled in this case. 
+    '''
     parameters = (
-        {'regwgt': 0.0,'features':range(384)},
+        #{'regwgt': 0.0,'features':range(384)},
         {'regwgt': 0.01,'features':range(384)},
-        {'regwgt': 1.0,'features':range(384)},
+        #{'regwgt': 1.0,'features':range(384)},
                       )
 
     numparams = len(parameters)
@@ -72,6 +90,7 @@ if __name__ == '__main__':
                 error = geterror(testset[1], predictions)
 
                 print ('Error for ' + learnername + ': ' + str(error))
+                print('\n')
                 errors[learnername][p,r] = error
         #print(errors)
 
@@ -82,8 +101,6 @@ if __name__ == '__main__':
             aveerror = np.mean(errors[learnername][p,:])
 
             sdError = np.std(errors[learnername][p,:])/np.sqrt(numruns)
-            #print(errors[learnername][p,:],numruns)
-
             if aveerror < besterror:
                 besterror = aveerror
                 bestparams = p
@@ -93,3 +110,4 @@ if __name__ == '__main__':
         #print ('Best parameters for ' + learnername + ': ' + str(learner.getparams()))
         print ('Average error for ' + learnername + ': ' + str(besterror))
         print ('Standard error for ' + learnername + ': ' + str(sdError))
+        print('\n')
